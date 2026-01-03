@@ -1,0 +1,25 @@
+sources:
+  local_postgres:
+    database: postgres
+    host: host.docker.internal
+    kind: postgres
+    password: postgres
+    port: 5432
+    user: postgres
+tools:
+  list_tables:
+    description: List all tables in the database
+    kind: postgres-sql
+    source: local_postgres
+    statement: SELECT table_name FROM information_schema.tables WHERE table_schema
+      = 'public';
+  query_database:
+    description: Run a read-only SQL query on the database
+    kind: postgres-sql
+    parameters:
+    - description: The SQL query to run
+      name: query
+      type: string
+    source: local_postgres
+    statement: '{{ .query }}'
+version: '1.0'
