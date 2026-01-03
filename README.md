@@ -1,0 +1,154 @@
+# MCP Servers
+
+This repository hosts a collection of Model Context Protocol (MCP) servers designed to provide AI agents with context and tools for interacting with various external services.
+
+## Release History
+
+### v0.2.0 (2025-01-03)
+- **Added GitHub MCP Server**: Initial setup of the `github-mcp-server` to provide GitHub connectivity for the agent. This includes utilizing the `@modelcontextprotocol/server-github` logic or custom implementation strategies.
+
+### v0.1.0 (2024-12-03)
+- **Added GCloud MCP Server**: Initial setup of the `gcloud-mcpserver` to support Google Cloud Platform operations, including `gcloud` command execution and resource management.
+
+## Available Servers
+
+### [gcloud-mcpserver](./gcloud-mcpserver)
+An MCP server that enables interaction with Google Cloud Platform (GCP) services. It allows agents to perform tasks such as:
+- Managing Compute Engine instances
+- interacting with Cloud Storage
+- querying resources via `gcloud` CLI wrappers
+
+It includes the following specialized components:
+
+#### [gcloud-mcp-server](./gcloud-mcpserver/remote-mcp-server/gcloud-mcp-server)
+A general-purpose server for GCloud operations, including:
+- **Core Operations**: Executing arbitrary `gcloud` commands.
+- **Cost Optimization**: Interacting with `gcloud recommender` to find idle resources (VMs, IPs, Disks) and rightsizing opportunities.
+- **Includes**: An interactive NLP client for natural language command execution.
+
+#### [google-db-mcp-toolbox](./gcloud-mcpserver/google-db-mcp-toolbox)
+A focused toolbox for database interactions, specifically PostgreSQL.
+- **Features**: Translates MCP tool calls into SQL queries.
+- **Usage**: Enables AI agents to query databases using a standardized interface.
+- **Components**: Includes a server, an interactive client, and pgAdmin for monitoring.
+
+#### [gcloud-monitoring-mcp](./gcloud-mcpserver/remote-mcp-server/gcloud-monitoring-mcp)
+Dedicated to Google Cloud observability (Monitoring and Logging).
+- **Tools**:
+    - `query_time_series`: Fetch metrics (CPU, memory, etc.) from Cloud Monitoring.
+    - `query_logs`: Search Cloud Logging entries with filters.
+    - `list_metrics`: Discover available metrics in a project.
+
+#### [google-storage-mcp](./gcloud-mcpserver/remote-mcp-server/google-storage-mcp)
+Focused specifically on Google Cloud Storage operations.
+- **Capabilities**: Listing buckets, listing objects, reading/writing content, and deleting objects.
+- **Auth Strategy**: Supports dynamic authentication via OAuth access tokens or mounted credentials.
+
+### [github-mcp-server](./github-mcp-server)
+An MCP server for GitHub, facilitating interactions such as:
+- Searching repositories
+- Reading file contents
+- Listing branches and commits
+- Managing issues and pull requests (capabilities dependent on implementation)
+
+
+## Local Deployment Instructions
+
+Most servers in this repository are containerized using Docker. Below are the general steps to deploy them locally.
+
+### Prerequisites
+1.  **Docker**: Ensure Docker Desktop is installed and running.
+2.  **Authentication**:
+    *   **GCloud**: Run `gcloud auth login` on your host machine to create credentials that can be shared with the container.
+    *   **GitHub**: Generate a Personal Access Token (PAT).
+    *   **Google API Key**: Required if you want to use the NLP-powered interactive clients.
+
+### Deploying Specific Servers
+
+#### 1. GCloud MCP Server
+```bash
+cd gcloud-mcpserver/remote-mcp-server/gcloud-mcp-server
+# Build the image
+docker build -t gcloud-mcp-image .
+
+# Run manually (or use the interactive client)
+docker run -i --rm \
+  -v ~/.config/gcloud:/root/.config/gcloud \
+  gcloud-mcp-image
+```
+
+#### 2. GitHub MCP Server
+```bash
+cd github-mcp-server
+# Build the image
+docker build -t local-github-mcp .
+
+# Run with your token
+export GITHUB_PERSONAL_ACCESS_TOKEN="your_token_here"
+docker run -i --rm \
+  -e GITHUB_PERSONAL_ACCESS_TOKEN="$GITHUB_PERSONAL_ACCESS_TOKEN" \
+  local-github-mcp
+```
+
+#### 3. Google Storage MCP
+```bash
+cd gcloud-mcpserver/remote-mcp-server/google-storage-mcp
+# Build
+docker build -t google-storage-mcp .
+```
+
+#### 4. Database Toolbox
+This uses Docker Compose:
+```bash
+cd gcloud-mcpserver/google-db-mcp-toolbox
+docker-compose up -d
+```
+
+---
+
+## Agentic AI Implementation (Interactive Client)
+
+These servers come with **Interactive Clients** (`*_interactive.py`) that demonstrate how an Agentic AI can interact with the tools. These clients use **Google Gemini** (via `google-genai` SDK) to translate natural language into specific MCP tool calls.
+
+### How it Works
+1.  **User Input**: You type a natural language command (e.g., "List all VMs in us-central1").
+2.  **Translation**: The script sends this prompt to Gemini (Flash model).
+3.  **Tool Call Generation**: Gemini returns a structured tool call (e.g., `run_gcloud_command command="gcloud compute instances list ..."`).
+4.  **Execution**: The script executes the tool against the Dockerized MCP server.
+5.  **Response**: The result is displayed to the user.
+
+### Running the Interactive Clients
+
+Ensure you have your `GOOGLE_API_KEY` exported:
+```bash
+export GOOGLE_API_KEY="your-gemini-api-key"
+```
+
+#### GCloud Client
+```bash
+cd gcloud-mcpserver/remote-mcp-server/gcloud-mcp-server
+python gcloud_mcp_interactive.py
+```
+*Example: "Find idle IP addresses in my project"*
+
+#### GitHub Client
+```bash
+cd github-mcp-server
+python github_mcp_interactive.py
+# You will be prompted for your GitHub PAT if not set in env
+```
+*Example: "Show me the issues in microsoft/vscode"*
+
+#### Storage Client
+```bash
+cd gcloud-mcpserver/remote-mcp-server/google-storage-mcp
+python storage_mcp_interactive.py
+```
+*Example: "List files in bucket my-data-bucket"*
+
+#### Database Client
+```bash
+cd gcloud-mcpserver/google-db-mcp-toolbox
+python db_mcp_interactive.py
+```
+*Example: "Show me the top 10 users by order count"*
