@@ -85,7 +85,7 @@ def translate_to_tool_call(prompt: str) -> str:
         """
         
         response = client.models.generate_content(
-            model="gemini-2.0-flash-exp",
+            model="gemini-3-flash-preview",
             contents=prompt,
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction,

@@ -2,6 +2,17 @@
 
 This repository hosts a collection of Model Context Protocol (MCP) servers designed to provide AI agents with context and tools for interacting with various external services.
 
+## Server Index
+*   **[gcloud-mcpserver](./gcloud-mcpserver)**: Comprehensive Google Cloud Platform suite.
+    *   [Core GCloud](./gcloud-mcpserver/remote-mcp-server/gcloud-mcp-server) (Compute, Resources)
+    *   [Google Analytics](./gcloud-mcpserver/remote-mcp-server/google-analytics-mcp) (GA4 Reports)
+    *   [Google Storage](./gcloud-mcpserver/remote-mcp-server/google-storage-mcp) (GCS Buckets)
+    *   [Cloud Monitoring](./gcloud-mcpserver/remote-mcp-server/gcloud-monitoring-mcp) (Metrics & Logs)
+    *   [Database Toolbox](./gcloud-mcpserver/google-db-mcp-toolbox) (Postgres/SQL)
+*   **[github-mcp-server](./github-mcp-server)**: GitHub repository management (Issues, PRs, Code).
+*   **[sequentialthinking](./sequentialthinking)**: Advanced reasoning and thought tracking for agents.
+*   **[filesystem](./filesystem)**: Local file manipulation with Linux-like capabilities.
+
 ## Release History
 
 ### v0.2.0 (2025-01-03)
@@ -9,6 +20,11 @@ This repository hosts a collection of Model Context Protocol (MCP) servers desig
 
 ### v0.1.0 (2024-12-03)
 - **Added GCloud MCP Server**: Initial setup of the `gcloud-mcpserver` to support Google Cloud Platform operations, including `gcloud` command execution and resource management.
+
+### v0.3.0 (2025-01-15)
+- **Filesystem Support**: Added `filesystem` MCP server for local file management with Linux-like emulation (`cd`, `ls -l`).
+- **Sequential Thinking**: Added `sequentialthinking` server to improve agent reasoning capabilities with persistent thought tracking.
+- **Google Analytics**: Added `google-analytics-mcp` for querying GA4 reports.
 
 ## Available Servers
 
@@ -50,6 +66,23 @@ An MCP server for GitHub, facilitating interactions such as:
 - Reading file contents
 - Listing branches and commits
 - Managing issues and pull requests (capabilities dependent on implementation)
+
+### [google-analytics-mcp](./gcloud-mcpserver/remote-mcp-server/google-analytics-mcp)
+Allows agents to query GA4 reports providing insights into web traffic and user behavior.
+- **Core Tool**: `run_report` (supports dimensions, metrics, date ranges).
+- **Authentication**: Uses `GOOGLE_ACCESS_TOKEN` for secure API access.
+
+### [sequentialthinking](./sequentialthinking)
+Enhances agent reasoning by allowing it to break down complex problems into a structured sequence of thoughts.
+- **Features**: Dynamic thought generation, branching/forking thoughts, and revision history.
+- **Persistence**: Supports saving thought processes to JSON files (if volume mounted).
+- **Best For**: Complex logic puzzles, code architecture planning, and debugging.
+
+### [filesystem](./filesystem)
+A robust server for local file system interactions with advanced client-side emulation.
+- **Tools**: `read`, `write`, `list`, `search`, `move`, `get_info`.
+- **Linux Emulation**: The interactive client supports `cd` (stateful CWD), `ls -all` (detailed listings), and resolving relative paths.
+- **Security**: Requires explicit volume mounting (Client defaults to current directory).
 
 
 ## Local Deployment Instructions
@@ -104,6 +137,27 @@ cd gcloud-mcpserver/google-db-mcp-toolbox
 docker-compose up -d
 ```
 
+#### 5. Google Analytics MCP
+```bash
+cd gcloud-mcpserver/remote-mcp-server/google-analytics-mcp
+# Build
+docker build -t analytics-mcp .
+```
+
+#### 6. Sequential Thinking MCP
+```bash
+cd sequentialthinking
+# Build
+docker build -t sequentialthinking .
+```
+
+#### 7. Filesystem MCP
+```bash
+cd filesystem
+# Build
+docker build -t filesystem .
+```
+
 ---
 
 ## Agentic AI Implementation (Interactive Client)
@@ -152,3 +206,27 @@ cd gcloud-mcpserver/google-db-mcp-toolbox
 python db_mcp_interactive.py
 ```
 *Example: "Show me the top 10 users by order count"*
+
+#### Google Analytics Client
+```bash
+cd gcloud-mcpserver/remote-mcp-server/google-analytics-mcp
+# Requires valid Access Token
+export GOOGLE_ACCESS_TOKEN=$(gcloud auth print-access-token)
+python analytics_interactive.py
+```
+*Example: "Get total users and active users for the last 28 days"*
+
+#### Sequential Thinking Client
+```bash
+cd sequentialthinking
+python sequentialthinking_interactive.py
+```
+*Example: "Plan a complex microservices architecture"* (The agent will loop through thoughts)
+
+#### Filesystem Client
+```bash
+cd filesystem
+# Run from the directory you want to manage!
+python filesystem_interactive.py
+```
+*Example: "ls -all", "create file src/main.py", "cd src"*

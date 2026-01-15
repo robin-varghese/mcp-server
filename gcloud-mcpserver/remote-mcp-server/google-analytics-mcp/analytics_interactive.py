@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Interactive Client for Google Cloud Run MCP Server
+Interactive Client for Google Analytics MCP Server
 
-This script provides a REPL interface to interact with the Cloud Run MCP server.
+This script provides a REPL interface to interact with the Google Analytics MCP server.
 It connects to the Docker container and allows executing available tools.
 It supports both direct tool execution and Natural Language Processing (NLP) via Gemini.
 """
@@ -22,24 +22,44 @@ except ImportError:
     HAS_GENAI = False
 
 # Configuration
-DOCKER_IMAGE = "google-cloud-run-mcp"
+DOCKER_IMAGE = "google-analytics-mcp"
 # Default to mounting local gcloud config if no token is provided
 MOUNT_PATH = f"{os.path.expanduser('~')}/.config/gcloud:/root/.config/gcloud"
-GOOGLE_ACCESS_TOKEN = os.environ.get("GOOGLE_ACCESS_TOKEN")
+GOOGLE_APPLICATION_CREDENTIALS = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+GOOGLE_PROJECT_ID = os.environ.get("GOOGLE_PROJECT_ID")
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
+GOOGLE_ACCESS_TOKEN = os.environ.get("GOOGLE_ACCESS_TOKEN")
 
 def get_server_params():
     cmd = ["docker", "run", "-i", "--rm"]
     
-    # If a token is present, pass it as env var
+    # Pass necessary environment variables
+    if GOOGLE_PROJECT_ID:
+        cmd.extend(["-e", f"GOOGLE_PROJECT_ID={GOOGLE_PROJECT_ID}"])
+
     if GOOGLE_ACCESS_TOKEN:
         cmd.extend(["-e", f"GOOGLE_ACCESS_TOKEN={GOOGLE_ACCESS_TOKEN}"])
-    else:
-        # Otherwise mount credentials
-        cmd.extend(["-v", MOUNT_PATH])
+    
+    if GOOGLE_APPLICATION_CREDENTIALS:
+         # If credentials file path is provided, we need to make sure the file is mounted
+         # But usually for local docker desktop simplicity we mount the whole .config/gcloud or expect user to handle it
+         # For simplicity in this script, we assume the standard mount or passed credentials content via env var if supported by lib
+         # The google-analytics-mcp docs say to set GOOGLE_APPLICATION_CREDENTIALS to a path.
+         # So we must mount the file if it's a file path.
+         
+         # If it's a path on host, we should mount it. 
+         # Simplification: We assume the user might have set up ADC via gcloud and we default to mounting ~/.config/gcloud
+         pass
+
+    # Mount gcloud config for ADC
+    # The container runs as root by default in this simple Dockerfile, so we map to /root/.config/gcloud
+    cmd.extend(["-v", MOUNT_PATH])
         
     cmd.append(DOCKER_IMAGE)
     
+    # Debug print
+    # print(f"DEBUG: Running command: {' '.join(cmd)}")
+
     return StdioServerParameters(
         command=cmd[0],
         args=cmd[1:],
@@ -55,34 +75,30 @@ def translate_to_tool_call(prompt: str) -> str:
         client = genai.Client(api_key=GOOGLE_API_KEY)
         
         system_instruction = """
-        You are an expert Google Cloud Run assistant.
-        Translate the user's natural language request into a valid Tool Call for the 'cloud-run-mcp' server.
+        You are an expert Google Analytics assistant.
+        Translate the user's natural language request into a valid Tool Call for the 'analytics-mcp' server.
         
-        Available Tools:
-        - list_services(project=str)
-        - get_service(service=str project=str region=str)
-        - get_service_log(service=str project=str region=str)
-        - deploy_file_contents(service=str files=dict project=str region=str)
-        - list_projects()
-        - create_project(projectId=str)
+        Expected tools (examples, may vary based on dynamic discovery):
+        - get_account_summaries()
+        - run_report(property_id=str, dimensions=list, metrics=list, date_ranges=list, ...)
+        - run_realtime_report(property_id=str, dimensions=list, metrics=list, ...)
+        - get_metadata(property_id=str)
         
         Output Format:
         Return ONLY the command string in the format: tool_name key=value key2=value2
+        For list arguments, use JSON strings or valid python representation if simple.
         
         Rules:
-        1. Parse the project and region from the request if possible.
+        1. Parse the property_id from the request if possible.
         2. Do NOT output markdown or explanations. Just the raw command string.
-        3. If you cannot understand or map the request, return the prompt as is or "Need more info: ..."
+        3. If you cannot understand or map the request, return the prompt as is.
         
         Examples:
-        User: "list services in project my-p-123"
-        Output: list_services project=my-p-123
+        User: "list account summaries"
+        Output: get_account_summaries
         
-        User: "get status of service my-app in us-central1"
-        Output: get_service service=my-app region=us-central1
-        
-        User: "show logs for my-app in project p1"
-        Output: get_service_log service=my-app project=p1
+        User: "show popular events for property 123456"
+        Output: run_report property_id=123456 dimensions=['eventName'] metrics=['eventCount'] date_ranges=[{'startDate': '30daysAgo', 'endDate': 'today'}]
         """
         
         response = client.models.generate_content(
@@ -107,7 +123,7 @@ def translate_to_tool_call(prompt: str) -> str:
         return prompt
 
 async def run_interactive_session():
-    print(f"Starting Interactive Cloud Run MCP Client...")
+    print(f"Starting Interactive Google Analytics MCP Client...")
     print(f"Docker Image: {DOCKER_IMAGE}")
     
     global GOOGLE_API_KEY
@@ -118,24 +134,22 @@ async def run_interactive_session():
             GOOGLE_API_KEY = user_key
 
     if HAS_GENAI and GOOGLE_API_KEY:
-        print("✨ NLP Enabled: You can use natural language (e.g., 'list services in my-project')")
+        print("✨ NLP Enabled: You can use natural language (e.g., 'list my accounts')")
     else:
-        print("⚠️ NLP Disabled: Use exact key=value syntax (e.g., 'list-services project_id=foo')")
+        print("⚠️ NLP Disabled: Use exact key=value syntax")
 
-    if GOOGLE_ACCESS_TOKEN:
-        print("🔑 Using provided GOOGLE_ACCESS_TOKEN")
-    else:
-        print(f"📂 Mounting local credentials from: {MOUNT_PATH}")
+    print(f"📂 Mounting local credentials from: {MOUNT_PATH}")
 
     try:
         async with stdio_client(get_server_params()) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
-                print("\n✅ Connected to Cloud Run MCP Server")
+                print("\n✅ Connected to Google Analytics MCP Server")
                 
                 # List tools
+                print("\nDiscovering tools...")
                 tools = await session.list_tools()
-                print("\nGiven the dynamic nature, here are the exact schemas for available tools:")
+                print("\nAvailable Tools:")
                 for t in tools.tools:
                      args = t.inputSchema.get("properties", {}).keys()
                      print(f"  - {t.name}: {list(args)}")
@@ -143,13 +157,13 @@ async def run_interactive_session():
                 print("\n" + "="*50)
                 print("ENTER COMMANDS (type 'exit' or 'quit' to stop)")
                 print("Examples:")
-                print("  > list services in project my-project")
-                print("  > get logs for service my-service")
+                print("  > list accounts")
+                print("  > run report property_id=... metrics=['activeUsers']")
                 print("="*50 + "\n")
 
                 while True:
                     try:
-                        user_input = input("\ncloud-run> ").strip()
+                        user_input = input("\nanalytics-mcp> ").strip()
                         if not user_input:
                             continue
                         if user_input.lower() in ['exit', 'quit']:
@@ -161,6 +175,7 @@ async def run_interactive_session():
                             print(f"🤖 Translated to: {cmd_str}")
                         
                         # Parse input: tool_name key=value key=value
+                        # Basic parsing that handles quoted values roughly would be better but shlex suffices for simple cases
                         parts = shlex.split(cmd_str)
                         if not parts:
                             continue
@@ -173,13 +188,18 @@ async def run_interactive_session():
                         for arg in parts[1:]:
                             if '=' in arg:
                                 k, v = arg.split('=', 1)
+                                # Try to parse JSON values for lists/dicts
+                                try:
+                                    if (v.startswith('[') and v.endswith(']')) or (v.startswith('{') and v.endswith('}')):
+                                        v = json.loads(v.replace("'", '"')) # Simple quote fix try
+                                except:
+                                    pass
                                 tool_args[k] = v
                             else:
                                 valid_syntax = False
                                 print(f"⚠️ Warning: Arg '{arg}' is not in key=value format. NLP might have failed or input is malformed.")
                         
                         if not valid_syntax and cmd_str == user_input:
-                             # If we didn't translate and syntax is wrong, it's likely a raw NLP query that failed translation
                              print("💡 Tip: Set GOOGLE_API_KEY to enable smart translation.")
 
                         print(f"Executing: {tool_name} with {tool_args} ...")
