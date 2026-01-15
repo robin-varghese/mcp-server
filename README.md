@@ -12,16 +12,16 @@ This repository hosts a collection of Model Context Protocol (MCP) servers desig
 *   **[github-mcp-server](./github-mcp-server)**: GitHub repository management (Issues, PRs, Code).
 *   **[sequentialthinking](./sequentialthinking)**: Advanced reasoning and thought tracking for agents.
 *   **[filesystem](./filesystem)**: Local file manipulation with Linux-like capabilities.
+*   **[brave-search](./brave-search)**: Privacy-focused web and local search using Brave API.
+*   **[puppeteer](./puppeteer)**: Headless browser automation (Screenshots, Navigation, Interaction).
 
 ## Release History
 
-### v0.2.0 (2025-01-03)
-- **Added GitHub MCP Server**: Initial setup of the `github-mcp-server` to provide GitHub connectivity for the agent. This includes utilizing the `@modelcontextprotocol/server-github` logic or custom implementation strategies.
-
-### v0.1.0 (2024-12-03)
-- **Added GCloud MCP Server**: Initial setup of the `gcloud-mcpserver` to support Google Cloud Platform operations, including `gcloud` command execution and resource management.
+### v0.4.0 (2025-01-15)
+- **Puppeteer Support**: Added `puppeteer` MCP server for browser automation (Dockerized with headless Chromium).
 
 ### v0.3.0 (2025-01-15)
+- **Brave Search**: Added `brave-search` MCP server (requires API Key).
 - **Filesystem Support**: Added `filesystem` MCP server for local file management with Linux-like emulation (`cd`, `ls -l`).
 - **Sequential Thinking**: Added `sequentialthinking` server to improve agent reasoning capabilities with persistent thought tracking.
 - **Google Analytics**: Added `google-analytics-mcp` for querying GA4 reports.
@@ -83,6 +83,19 @@ A robust server for local file system interactions with advanced client-side emu
 - **Tools**: `read`, `write`, `list`, `search`, `move`, `get_info`.
 - **Linux Emulation**: The interactive client supports `cd` (stateful CWD), `ls -all` (detailed listings), and resolving relative paths.
 - **Security**: Requires explicit volume mounting (Client defaults to current directory).
+
+### [brave-search](./brave-search)
+Integration with Brave Search API for web and local discovery.
+- **Tools**: `brave_web_search`, `brave_local_search`.
+- **Privacy**: No tracking or profiling of search queries.
+- **Emulation**: Includes an interactive client for testing search queries naturally.
+- **Requirement**: Needs a `BRAVE_API_KEY` (Free tier available).
+
+### [puppeteer](./puppeteer)
+Browser automation using headless Chrome.
+- **Tools**: `navigate`, `screenshot`, `click`, `fill`, `evaluate`.
+- **Environment**: Containerized with all necessary fonts and dependencies for headless execution.
+- **Compatibility**: Supports ARM64 (e.g., Apple Silicon) and AMD64 via system Chromium.
 
 
 ## Local Deployment Instructions
@@ -158,6 +171,20 @@ cd filesystem
 docker build -t filesystem .
 ```
 
+#### 8. Brave Search MCP
+```bash
+cd brave-search
+# Build
+docker build -t brave-search .
+```
+
+#### 9. Puppeteer MCP
+```bash
+cd puppeteer
+# Build
+docker build -t puppeteer-mcp .
+```
+
 ---
 
 ## Agentic AI Implementation (Interactive Client)
@@ -230,3 +257,20 @@ cd filesystem
 python filesystem_interactive.py
 ```
 *Example: "ls -all", "create file src/main.py", "cd src"*
+
+#### Brave Search Client
+```bash
+cd brave-search
+export BRAVE_API_KEY="your-brave-key"
+python brave_search_interactive.py
+```
+*Example: "Search for best hiking trails in Colorado"*
+
+#### Puppeteer Client
+```bash
+cd puppeteer
+# NLP is optional but recommended
+export GOOGLE_API_KEY="your-gemini-key"
+python puppeteer_interactive.py
+```
+*Example: "Go to github.com and take a screenshot"*
